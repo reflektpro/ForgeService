@@ -19,14 +19,19 @@ if server_dir not in sys.path:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.db.database import DB_PATH, Base
+from app.db.database import DATABASE_URL, Base
 from app.models.models import (
     Client, Vehicle, Employee, Bay, WorkOrder, WorkOrderItem,
     Part, WorkOrderPartUsage, WorkOrderStatus
 )
 
 # Use sync engine for seed (much more reliable)
-engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+# Respect DATABASE_URL from env (for Railway volume etc.)
+if "sqlite" in DATABASE_URL:
+    sync_url = DATABASE_URL.replace("sqlite+aiosqlite", "sqlite")
+else:
+    sync_url = DATABASE_URL
+engine = create_engine(sync_url, echo=False)
 
 # Ensure foreign keys
 from sqlalchemy import event
