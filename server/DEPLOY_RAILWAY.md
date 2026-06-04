@@ -13,12 +13,29 @@ Railway.app is currently one of the easiest free hosting platforms for FastAPI +
 3. Select your repo.
 4. Railway will detect the Python project.
 
-**Important settings:**
-- In the service settings, set **Root Directory** to `server` (so it finds requirements.txt and app/).
-- **Start Command** (or use the Procfile we added):
-  ```
-  uvicorn app.main:app --host 0.0.0.0 --port $PORT
-  ```
+**Critical settings (this fixes most build errors):**
+- In the service settings (after creating), go to **Settings** tab:
+  - **Root Directory**: set to `server` (very important! so it finds `requirements.txt`, `Procfile`, `app/` package)
+  - **Build Command**: leave empty (Railway auto-detects)
+  - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+We also added `runtime.txt` and `nixpacks.toml` in the `server/` folder to help the build process (Python 3.11 + correct packages).
+
+## Troubleshooting "Failed to build an image"
+
+If you see the exact error you posted:
+1. Click **View logs** or expand the "Build › Build image" step.
+2. Look for the real error (e.g. "No module named ...", "requirements.txt not found", Python version issues).
+3. Common fixes:
+   - Double-check **Root Directory** is exactly `server` (not empty, not `ForgeService`).
+   - Redeploy after changing settings (click "Deploy" or "Redeploy").
+   - The `runtime.txt` and `nixpacks.toml` we pushed should help — make sure they are in the repo at `server/runtime.txt` and `server/nixpacks.toml`.
+   - If still fails, try adding this environment variable in Railway:
+     ```
+     NIXPACKS_PYTHON_VERSION=3.11
+     ```
+
+If you paste the detailed build log here, I can tell you the exact fix.
 
 ## 3. Add Persistent Storage (Volume) — IMPORTANT for SQLite + Photos
 
