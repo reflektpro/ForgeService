@@ -13,17 +13,21 @@ import retrofit2.converter.gson.GsonConverterFactory
  *   - Real phone on same Wi-Fi: "http://192.168.X.X:8000" (your PC LAN IP)
  *
  * For deployed server (Railway / Render / etc.):
- *   Use the public HTTPS URL, e.g. "https://forgeservice-production.up.railway.app"
+ *   Use the public HTTPS URL from your Railway service (e.g. "https://forgeservice-production-abc123.up.railway.app")
+ *   IMPORTANT: Must be https and without trailing slash. Update the baseUrl below!
  */
 object ApiClient {
 
     // === CHANGE THIS FOR YOUR DEPLOYMENT ===
-    // Local examples:
+    // 1. Find your Railway public URL in the service page (e.g. https://forgeservice-production-abc123.up.railway.app )
+    // 2. Replace below with it (https, no trailing slash)
+    //
+    // Local examples (commented):
     // private var baseUrl: String = "http://10.0.2.2:8000"
     // private var baseUrl: String = "http://192.168.1.74:8000"
 
-    // Production (after deploying to Railway etc.):
-    private var baseUrl: String = "http://192.168.1.74:8000"
+    // Production Railway URL - UPDATE THIS!
+    private var baseUrl: String = "https://YOUR-RAILWAY-URL.up.railway.app"
 
     val currentBaseUrl: String
         get() = baseUrl
