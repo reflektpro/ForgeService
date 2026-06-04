@@ -75,18 +75,29 @@ Alternatively, you can run it locally first, copy the `forgeservice.db` to the v
 
 ## 6. Get your public URL
 
-After deploy you will see a URL like:
-`https://forgeservice-production-XXXX.up.railway.app`
+In your Railway service page (not variables), look for the **public domain** or **URL** (usually https://something.up.railway.app ). Copy it.
 
-## 7. Update Android App
+**Important for free tier:** The app sleeps after ~5 min inactivity. Open the URL in browser first to wake it up before testing the Android app.
 
-In `android-app/.../data/remote/ApiClient.kt`:
+## 7. Update Android App (CRITICAL - this is why "прога не работает")
 
-```kotlin
-private var baseUrl: String = "https://forgeservice-production-XXXX.up.railway.app"
-```
+1. In the repo, edit:
+   `android-app/app/src/main/java/com/forgeservice/app/data/remote/ApiClient.kt`
 
-Rebuild the app and test on emulator or real phone.
+2. Find the line:
+   ```kotlin
+   private var baseUrl: String = "https://YOUR-RAILWAY-URL.up.railway.app"
+   ```
+   Replace with your actual Railway public URL (https, no trailing / ).
+
+3. In Android Studio:
+   - Build → Clean Project
+   - Build → Rebuild Project
+   - Run on emulator or install APK on phone.
+
+The app will now call your live backend.
+
+Also run seed in Railway Shell (see step 5) so there is data.
 
 ## 8. Useful Railway tips
 
