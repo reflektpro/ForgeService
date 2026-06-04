@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForgeService • Офис</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200">
+    <div class="max-w-7xl mx-auto p-8">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-4xl font-semibold tracking-tight">ForgeService</h1>
+                <p class="text-zinc-400">Офисная панель • Локальный сервер</p>
+            </div>
+            <div class="text-right text-sm">
+                <div class="text-emerald-400">● Сервер онлайн</div>
+                <div id="time" class="text-zinc-500"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div class="text-sm text-zinc-400">Активных заказов</div>
+                <div class="text-5xl font-semibold mt-2 text-orange-400" id="active">—</div>
+            </div>
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div class="text-sm text-zinc-400">Загрузка боксов</div>
+                <div class="text-5xl font-semibold mt-2" id="bays">—</div>
+            </div>
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div class="text-sm text-zinc-400">Выручка (30д)</div>
+                <div class="text-5xl font-semibold mt-2 text-emerald-400" id="revenue">—</div>
+            </div>
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div class="text-sm text-zinc-400">Низкий остаток</div>
+                <div class="text-5xl font-semibold mt-2 text-red-400" id="lowstock">—</div>
+            </div>
+        </div>
+
+        <h2 class="text-xl font-semibold mb-4">Активные заказ-наряды</h2>
+        <div id="orders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Populated by JS -->
+        </div>
+
+        <p class="mt-8 text-center text-xs text-zinc-500">
+            Данные обновляются при перезагрузке страницы. Для реал-тайма можно добавить WebSocket позже.
+        </p>
+    </div>
+
+    <script>
+        async function load() {
+            try {
+                const stats = await fetch('/api/dashboard/stats').then(r => r.json());
+                document.getElementById('active').textContent = stats.active_orders;
+                document.getElementById('bays').textContent = stats.bays_occupied + '/' + stats.bays_total;
+                document.getElementById('revenue').textContent = (stats.revenue_month / 1000).toFixed(0) + 'k ₽';
+                document.getElementById('lowstock').textContent = stats.low_stock_parts;
+
+                const orders = await fetch('/api/work-orders?limit=9').then(r => r.json());
+                const container = document.getElementById('orders');
+                container.innerHTML = '';
+
+                orders.forEach(o => {
+                    const el = document.createElement('div');
+                    el.className = 'bg-zinc-900 border border-zinc-800 rounded-2xl p-5';
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-semibold">ЗН-${o.id}</div>
+                                <div class="text-sm text-zinc-400">Статус: <span class="text-orange-400">${o.status}</span></div>
+                            </div>
+                            <div class="text-right text-sm">
+                                <div class="font-medium">${o.total_cost.toLocaleString()} ₽</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-xs text-zinc-500">Авто #${o.vehicle_id} • Бокс ${o.assigned_bay_id || '—'}</div>
+                    `;
+                    container.appendChild(el);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function updateTime() {
+            document.getElementById('time').textContent = new Date().toLocaleTimeString('ru-RU');
+        }
+
+        load();
+        setInterval(load, 15000);
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>

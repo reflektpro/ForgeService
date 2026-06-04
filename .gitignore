@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+server/venv/
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Android Studio / Gradle
+android-app/.gradle/
+android-app/app/build/
+android-app/local.properties
+android-app/.idea/
+android-app/*.iml
+android-app/captures/
+android-app/.externalNativeBuild/
+android-app/.cxx/
+
+# Project data (regeneratable with seed.py, uploaded photos shouldn't be in git usually)
+**/*.db
+**/data/pdfs/
+**/photos/*
+!**/photos/.gitkeep
+
+# Logs and temp
+*.log
+seed_log.txt
+seed_output.txt
+*.tmp
+
+# OS generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+*.env
+
+# Misc
+*.bak
