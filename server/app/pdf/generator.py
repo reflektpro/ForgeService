@@ -20,6 +20,20 @@ from datetime import datetime
 OUTPUT_DIR = Path(__file__).parent.parent.parent / "data" / "pdfs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Fonts with full Cyrillic support (bundled DejaVuSans)
+FONT_DIR = Path(__file__).parent / "fonts"
+FONT_REGULAR = "DejaVu"
+FONT_BOLD = "DejaVu-Bold"
+
+# Register fonts once (DejaVu has excellent Cyrillic + Latin coverage)
+try:
+    pdfmetrics.registerFont(TTFont(FONT_REGULAR, str(FONT_DIR / "DejaVuSans.ttf")))
+    pdfmetrics.registerFont(TTFont(FONT_BOLD, str(FONT_DIR / "DejaVuSans-Bold.ttf")))
+except Exception:
+    # Fallback (will produce tofu/black squares for Cyrillic if fonts missing)
+    FONT_REGULAR = "Helvetica"
+    FONT_BOLD = "Helvetica-Bold"
+
 
 def generate_work_order_pdf(work_order_data: dict, output_name: str = None) -> str:
     """
@@ -35,17 +49,17 @@ def generate_work_order_pdf(work_order_data: dict, output_name: str = None) -> s
     width, height = A4
 
     # Header
-    c.setFont("Helvetica-Bold", 18)
+    c.setFont(FONT_BOLD, 18)
     c.drawCentredString(width/2, height - 25*mm, "FORGE SERVICE")
 
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     c.drawCentredString(width/2, height - 32*mm, "Профессиональный автосервис • Акт выполненных работ / Заказ-наряд")
 
     # Order info
     y = height - 50*mm
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont(FONT_BOLD, 12)
     c.drawString(20*mm, y, f"Заказ-наряд № {work_order_data.get('id')}")
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     y -= 7*mm
     c.drawString(20*mm, y, f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     y -= 7*mm
@@ -53,17 +67,17 @@ def generate_work_order_pdf(work_order_data: dict, output_name: str = None) -> s
 
     # Vehicle & Client
     y -= 12*mm
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont(FONT_BOLD, 11)
     c.drawString(20*mm, y, "Автомобиль:")
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     y -= 6*mm
     vehicle = work_order_data.get("vehicle", {})
     c.drawString(25*mm, y, f"{vehicle.get('make', '')} {vehicle.get('model', '')} {vehicle.get('year', '')} • {vehicle.get('license_plate', '')}")
 
     y -= 10*mm
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont(FONT_BOLD, 11)
     c.drawString(20*mm, y, "Клиент:")
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     y -= 6*mm
     client = work_order_data.get("client", {})
     c.drawString(25*mm, y, client.get("full_name", "—"))
@@ -72,32 +86,32 @@ def generate_work_order_pdf(work_order_data: dict, output_name: str = None) -> s
 
     # Works
     y -= 12*mm
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont(FONT_BOLD, 11)
     c.drawString(20*mm, y, "Выполненные работы:")
 
     y -= 8*mm
     items = work_order_data.get("items", [])
     for item in items[:8]:  # limit
-        c.setFont("Helvetica", 9)
+        c.setFont(FONT_REGULAR, 9)
         c.drawString(25*mm, y, f"• {item.get('description', '')}")
         c.drawRightString(width - 20*mm, y, f"{item.get('total_price', 0):.0f} ₽")
         y -= 5*mm
 
     # Totals
     y -= 8*mm
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont(FONT_BOLD, 11)
     c.drawString(20*mm, y, "Итого:")
     y -= 6*mm
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     c.drawString(25*mm, y, f"Работы: {work_order_data.get('labor_cost', 0):.0f} ₽")
     y -= 5*mm
     c.drawString(25*mm, y, f"Запчасти: {work_order_data.get('parts_cost', 0):.0f} ₽")
     y -= 5*mm
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont(FONT_BOLD, 11)
     c.drawString(25*mm, y, f"К оплате: {work_order_data.get('total_cost', 0):.0f} ₽")
 
     # Footer
-    c.setFont("Helvetica", 8)
+    c.setFont(FONT_REGULAR, 8)
     c.drawCentredString(width/2, 15*mm, "Документ сформирован автоматически системой ForgeService • Все права защищены")
 
     c.save()
@@ -125,20 +139,20 @@ def generate_report_pdf(report_data: dict, output_name: str = None) -> str:
     width, height = A4
 
     # Header
-    c.setFont("Helvetica-Bold", 18)
+    c.setFont(FONT_BOLD, 18)
     c.drawCentredString(width/2, height - 25*mm, "FORGE SERVICE")
 
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     c.drawCentredString(width/2, height - 32*mm, f"Отчет за последние {report_data.get('period_days', 30)} дней")
 
     y = height - 50*mm
 
     # Summary
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont(FONT_BOLD, 12)
     c.drawString(20*mm, y, "Сводка:")
     y -= 8*mm
 
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     c.drawString(25*mm, y, f"Выручка: {report_data.get('revenue', 0):.0f} ₽")
     y -= 6*mm
     c.drawString(25*mm, y, f"Заказов закрыто: {report_data.get('orders_count', 0)}")
@@ -149,28 +163,28 @@ def generate_report_pdf(report_data: dict, output_name: str = None) -> str:
 
     # Top services
     y -= 12*mm
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont(FONT_BOLD, 12)
     c.drawString(20*mm, y, "Топ услуг:")
     y -= 8*mm
 
-    c.setFont("Helvetica", 10)
+    c.setFont(FONT_REGULAR, 10)
     for service, count in report_data.get("top_services", [])[:5]:
         c.drawString(25*mm, y, f"• {service} — {count} заказов")
         y -= 6*mm
 
     # Recent orders
     y -= 8*mm
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont(FONT_BOLD, 12)
     c.drawString(20*mm, y, "Последние закрытые заказы:")
     y -= 8*mm
 
-    c.setFont("Helvetica", 9)
+    c.setFont(FONT_REGULAR, 9)
     for order in report_data.get("recent_orders", [])[:5]:
         c.drawString(25*mm, y, f"ЗН-{order.get('id')} — {order.get('total', 0):.0f} ₽")
         y -= 5*mm
 
     # Footer
-    c.setFont("Helvetica", 8)
+    c.setFont(FONT_REGULAR, 8)
     c.drawCentredString(width/2, 15*mm, "Документ сформирован автоматически системой ForgeService • Все права защищены")
 
     c.save()
