@@ -53,7 +53,7 @@ async def broadcast_work_order_update(work_order_id: int, event: str = "work_ord
     )
 
 
-@router.get("/", response_model=List[WorkOrderResponse])
+@router.get("", response_model=List[WorkOrderResponse])
 async def list_work_orders(
     db: AsyncSession = Depends(get_db),
     status: Optional[WorkOrderStatus] = None,
@@ -66,7 +66,7 @@ async def list_work_orders(
     return result.scalars().all()
 
 
-@router.post("/", response_model=WorkOrderResponse, status_code=201)
+@router.post("", response_model=WorkOrderResponse, status_code=201)
 async def create_work_order(payload: WorkOrderCreate, db: AsyncSession = Depends(get_db)):
     # Validate vehicle exists
     vehicle = await db.get(Vehicle, payload.vehicle_id)

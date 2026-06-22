@@ -14,13 +14,13 @@ from app.schemas.schemas import AppointmentCreate, AppointmentResponse
 router = APIRouter()
 
 
-@router.get("/", response_model=List[AppointmentResponse])
+@router.get("", response_model=List[AppointmentResponse])
 async def list_appointments(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Appointment).order_by(Appointment.scheduled_at))
     return result.scalars().all()
 
 
-@router.post("/", response_model=AppointmentResponse, status_code=201)
+@router.post("", response_model=AppointmentResponse, status_code=201)
 async def create_appointment(payload: AppointmentCreate, db: AsyncSession = Depends(get_db)):
     appt = Appointment(**payload.model_dump())
     db.add(appt)

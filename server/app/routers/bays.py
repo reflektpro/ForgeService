@@ -14,13 +14,13 @@ from app.schemas.schemas import BayBase, BayResponse
 router = APIRouter()
 
 
-@router.get("/", response_model=List[BayResponse])
+@router.get("", response_model=List[BayResponse])
 async def list_bays(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Bay).order_by(Bay.name))
     return result.scalars().all()
 
 
-@router.post("/", response_model=BayResponse, status_code=201)
+@router.post("", response_model=BayResponse, status_code=201)
 async def create_bay(payload: BayBase, db: AsyncSession = Depends(get_db)):
     bay = Bay(**payload.model_dump())
     db.add(bay)

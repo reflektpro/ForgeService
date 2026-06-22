@@ -14,7 +14,7 @@ from app.schemas.schemas import EmployeeCreate, EmployeeResponse
 router = APIRouter()
 
 
-@router.get("/", response_model=List[EmployeeResponse])
+@router.get("", response_model=List[EmployeeResponse])
 async def list_employees(db: AsyncSession = Depends(get_db), active_only: bool = True):
     stmt = select(Employee)
     if active_only:
@@ -23,7 +23,7 @@ async def list_employees(db: AsyncSession = Depends(get_db), active_only: bool =
     return result.scalars().all()
 
 
-@router.post("/", response_model=EmployeeResponse, status_code=201)
+@router.post("", response_model=EmployeeResponse, status_code=201)
 async def create_employee(payload: EmployeeCreate, db: AsyncSession = Depends(get_db)):
     emp = Employee(**payload.model_dump())
     db.add(emp)

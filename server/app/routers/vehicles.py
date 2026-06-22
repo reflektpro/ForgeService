@@ -15,7 +15,7 @@ from app.schemas.schemas import VehicleCreate, VehicleUpdate, VehicleResponse, V
 router = APIRouter()
 
 
-@router.get("/", response_model=List[VehicleResponse])
+@router.get("", response_model=List[VehicleResponse])
 async def list_vehicles(db: AsyncSession = Depends(get_db), q: str = "", limit: int = 100):
     stmt = select(Vehicle).order_by(Vehicle.license_plate)
     if q:
@@ -29,7 +29,7 @@ async def list_vehicles(db: AsyncSession = Depends(get_db), q: str = "", limit: 
     return result.scalars().all()
 
 
-@router.post("/", response_model=VehicleResponse, status_code=201)
+@router.post("", response_model=VehicleResponse, status_code=201)
 async def create_vehicle(payload: VehicleCreate, db: AsyncSession = Depends(get_db)):
     # Ensure client exists
     client = await db.get(Client, payload.client_id)

@@ -37,6 +37,7 @@ fun WarehouseScreen() {
         var stockQuantity by remember { mutableStateOf("10") }
 
         var showCreatePartDialog by remember { mutableStateOf(false) }
+        var createPartError by remember { mutableStateOf<String?>(null) }
         var newPartName by remember { mutableStateOf("") }
         var newPartArticle by remember { mutableStateOf("") }
         var newPartQty by remember { mutableStateOf("5") }
@@ -150,7 +151,10 @@ fun WarehouseScreen() {
         // FAB for new part
         Box(Modifier.fillMaxSize()) {
             FloatingActionButton(
-                onClick = { showCreatePartDialog = true },
+                onClick = {
+                    createPartError = null
+                    showCreatePartDialog = true
+                },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(16.dp)
@@ -243,6 +247,14 @@ fun WarehouseScreen() {
                 title = { Text("Новая запчасть") },
                 text = {
                     Column {
+                        if (createPartError != null) {
+                            Text(
+                                createPartError!!,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
                         OutlinedTextField(value = newPartName, onValueChange = { newPartName = it }, label = { Text("Название") })
                         OutlinedTextField(value = newPartArticle, onValueChange = { newPartArticle = it }, label = { Text("Артикул (опц.)") })
                         Row {
@@ -256,10 +268,15 @@ fun WarehouseScreen() {
                 },
                 confirmButton = {
                     TextButton(onClick = {
+                        if (newPartName.isBlank()) {
+                            createPartError = "Введите название запчасти"
+                            return@TextButton
+                        }
                         scope.launch {
                             try {
+                                createPartError = null
                                 val create = PartCreate(
-                                    name = newPartName.ifBlank { "Новая запчасть" },
+                                    name = newPartName.trim(),
                                     part_number = newPartArticle.takeIf { it.isNotBlank() },
                                     quantity = newPartQty.toIntOrNull() ?: 5,
                                     min_quantity = newPartMin.toIntOrNull() ?: 2,
@@ -268,11 +285,17 @@ fun WarehouseScreen() {
                                 )
                                 repository.createPart(create)
                                 showCreatePartDialog = false
-                                // reset form
-                                newPartName = ""; newPartArticle = ""; newPartQty = "5"; newPartMin = "2"; newPartSell = "1500"; newPartSupplier = ""
+                                lowStockOnly = false
+                                searchQuery = ""
+                                newPartName = ""
+                                newPartArticle = ""
+                                newPartQty = "5"
+                                newPartMin = "2"
+                                newPartSell = "1500"
+                                newPartSupplier = ""
                                 loadParts()
                             } catch (e: Exception) {
-                                showCreatePartDialog = false
+                                createPartError = "Не удалось создать: ${e.localizedMessage ?: e.message}"
                             }
                         }
                     }) { Text("Создать") }

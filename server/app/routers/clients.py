@@ -14,7 +14,7 @@ from app.schemas.schemas import ClientCreate, ClientUpdate, ClientResponse
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ClientResponse])
+@router.get("", response_model=List[ClientResponse])
 async def list_clients(db: AsyncSession = Depends(get_db), q: str = "", limit: int = 50):
     stmt = select(Client).order_by(Client.full_name)
     if q:
@@ -23,7 +23,7 @@ async def list_clients(db: AsyncSession = Depends(get_db), q: str = "", limit: i
     return result.scalars().all()
 
 
-@router.post("/", response_model=ClientResponse, status_code=201)
+@router.post("", response_model=ClientResponse, status_code=201)
 async def create_client(payload: ClientCreate, db: AsyncSession = Depends(get_db)):
     client = Client(**payload.model_dump())
     db.add(client)

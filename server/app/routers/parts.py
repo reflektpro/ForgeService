@@ -14,7 +14,7 @@ from app.schemas.schemas import PartCreate, PartUpdate, PartResponse, PartWithSt
 router = APIRouter()
 
 
-@router.get("/", response_model=List[PartWithStockWarning])
+@router.get("", response_model=List[PartWithStockWarning])
 async def list_parts(
     db: AsyncSession = Depends(get_db),
     q: str = "",
@@ -38,7 +38,7 @@ async def list_parts(
     return enriched
 
 
-@router.post("/", response_model=PartResponse, status_code=201)
+@router.post("", response_model=PartResponse, status_code=201)
 async def create_part(payload: PartCreate, db: AsyncSession = Depends(get_db)):
     part = Part(**payload.model_dump())
     db.add(part)
