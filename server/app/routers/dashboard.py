@@ -13,27 +13,31 @@ from app.schemas.schemas import DashboardStats
 
 router = APIRouter()
 
+ACTIVE_STATUSES = [
+    WorkOrderStatus.NEW,
+    WorkOrderStatus.DIAGNOSTICS,
+    WorkOrderStatus.AWAITING_APPROVAL,
+    WorkOrderStatus.IN_PROGRESS,
+    WorkOrderStatus.AWAITING_PARTS,
+    WorkOrderStatus.QUALITY_CONTROL,
+    WorkOrderStatus.READY,
+]
+
+
+def _month_ago_utc() -> datetime:
+    """Naive UTC datetime — safe for Postgres TIMESTAMP WITHOUT TIME ZONE columns."""
+    return (datetime.now(timezone.utc) - timedelta(days=30)).replace(tzinfo=None)
+
 
 @router.get("/stats", response_model=DashboardStats)
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
-    now = datetime.now(timezone.utc)
-    month_ago = now - timedelta(days=30)
+    month_ago = _month_ago_utc()
 
     # Active orders
     active = await db.execute(
-        select(func.count(WorkOrder.id)).where(
-            WorkOrder.status.in_([
-                WorkOrderStatus.NEW,
-                WorkOrderStatus.DIAGNOSTICS,
-                WorkOrderStatus.AWAITING_APPROVAL,
-                WorkOrderStatus.IN_PROGRESS,
-                WorkOrderStatus.AWAITING_PARTS,
-                WorkOrderStatus.QUALITY_CONTROL,
-                WorkOrderStatus.READY,
-            ])
-        )
+        select(func.count(WorkOrder.id)).where(WorkOrder.status.in_(ACTIVE_STATUSES))
     )
-    active_orders = active.scalar_one() or 0
+    active_orders = int(active.scalar_one() or 0)
 
     # Completed this month (rough)
     completed = await db.execute(
@@ -42,15 +46,16 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             WorkOrder.completed_at >= month_ago,
         )
     )
-    today_completed = completed.scalar_one() or 0  # rename in real would be month_completed
+    today_completed = int(completed.scalar_one() or 0)
 
     # Revenue this month (very simplified)
     revenue = await db.execute(
         select(func.coalesce(func.sum(WorkOrder.total_cost), 0.0)).where(
-            WorkOrder.completed_at >= month_ago
+            WorkOrder.completed_at.is_not(None),
+            WorkOrder.completed_at >= month_ago,
         )
     )
-    revenue_month = revenue.scalar_one() or 0.0
+    revenue_month = float(revenue.scalar_one() or 0.0)
 
     # Average check (last 30 completed or all if few)
     avg = await db.execute(
@@ -58,22 +63,22 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             WorkOrder.status == WorkOrderStatus.COMPLETED
         )
     )
-    avg_check = avg.scalar_one() or 0.0
+    avg_check = float(avg.scalar_one() or 0.0)
 
     # Low stock
     low_stock = await db.execute(
         select(func.count(Part.id)).where(Part.quantity <= Part.min_quantity)
     )
-    low_stock_parts = low_stock.scalar_one() or 0
+    low_stock_parts = int(low_stock.scalar_one() or 0)
 
     # Bays
     bays_total = await db.execute(select(func.count(Bay.id)))
-    bays_total = bays_total.scalar_one() or 0
+    bays_total = int(bays_total.scalar_one() or 0)
 
     bays_occupied = await db.execute(
         select(func.count(Bay.id)).where(Bay.current_work_order_id.is_not(None))
     )
-    bays_occupied = bays_occupied.scalar_one() or 0
+    bays_occupied = int(bays_occupied.scalar_one() or 0)
 
     return DashboardStats(
         active_orders=active_orders,
