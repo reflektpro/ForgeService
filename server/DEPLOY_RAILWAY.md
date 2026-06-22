@@ -39,13 +39,83 @@ If you paste the detailed build log here, I can tell you the exact fix.
 
 ## 3. Add Persistent Storage (Volume) — IMPORTANT for SQLite + Photos
 
-Without a volume, your database and uploaded photos will be lost on every restart.
+**Что такое Volume?**
+На Railway (особенно на бесплатном тарифе) обычная файловая система временная. При перезапуске сервиса, деплое или "засыпании" все файлы (база SQLite + загруженные фото) стираются.
+**Volume** — это как отдельный постоянный диск, который подключается к сервису и сохраняет данные навсегда.
 
-1. In your service → **Variables** tab → **Volumes** (or search "Volume").
-2. Create a new Volume:
-   - Name: `data`
-   - Mount path: `/data`
-3. This gives you persistent disk.
+### Как найти и создать Volume (по твоему скрину Settings):
+
+Из того, что ты скинул — ты смотришь **Settings** сервиса (Source, Networking, Scale, Build, Deploy и т.д.).
+
+В этом виде раздела **Volumes** может не быть сразу видно (иногда он появляется только после определённых действий или в другом месте интерфейса).
+
+**Попробуй по порядку:**
+
+1. На странице, которую ты показал, посмотри внимательно после блока **Scale** и перед **Build** — иногда Volumes там.
+2. Если нет — в **левом меню** сервиса (или сверху) переключись на вкладку **Variables**.
+3. В Variables пролистай вниз — там должен быть большой блок **Volumes** или кнопка **Add Volume**.
+4. Альтернатива: на главной странице сервиса (нажми на название сервиса слева сверху, чтобы выйти из Settings) посмотри в правом верхнем углу большую кнопку **+ Add**. Нажми её и выбери **Volume**.
+
+Создавай Volume с этими параметрами:
+- **Name**: `data`
+- **Mount Path**: `/data` (точно так, с ведущим слешем!)
+- Size: оставь минимальную (1GB)
+
+После создания:
+- Вернись во вкладку **Variables**.
+- Добавь (или проверь) эти две переменные:
+
+```
+DATABASE_URL=sqlite+aiosqlite:////data/forgeservice.db
+PHOTOS_DIR=/data/photos
+```
+
+- Нажми **Deploy** в правом верхнем углу.
+
+**Проверка Volume:**
+В сервисе перейди в **Shell** (ищи вкладку Shell или кнопку в меню).
+Выполни:
+```bash
+ls /data
+ls /data/photos
+```
+Должны показаться папки (после запуска seed.py там будет база и фото).
+
+Если и так не находишь — скинь скрин главной страницы сервиса (не Settings) или скажи, какие вкладки видишь слева. Подкорректируем.
+
+1. Зайди в свой проект: https://railway.com/project/9b430567-d93b-465d-87a8-c2d43d35bc9a
+2. Выбери нужный сервис (backend, не android-app).
+3. В верхнем меню или слева найди вкладку **Settings** (иконка шестерёнки).
+4. Пролистай страницу **вниз**.
+5. Найди раздел **Volumes** (или "Persistent Storage").
+6. Нажми **+ Add Volume** / **Create Volume**.
+7. Заполни:
+   - **Name**: `data`
+   - **Mount Path**: `/data`  (обязательно именно так, со слешем)
+   - Size: можно оставить по умолчанию (1 GB достаточно для начала)
+8. Нажми Create.
+
+После создания Volume **обязательно** перейди во вкладку **Variables** и добавь/обнови эти переменные:
+
+```
+DATABASE_URL=sqlite+aiosqlite:////data/forgeservice.db
+PHOTOS_DIR=/data/photos
+```
+
+**Важно:** Не помечай их как Secret (убери замочек/маску), иначе может вылезти ошибка "secret ID missing" при сборке. Оставь их обычными переменными (значения видимы).
+
+Затем нажми **Deploy** заново (или Redeploy latest).
+
+**Как проверить, что Volume работает:**
+- Зайди в сервис → вкладка **Shell**
+- Выполни команды:
+  ```
+  ls /data
+  ls /data/photos
+  ```
+  Должны появиться файлы после seed.
+
+Если не видишь раздел Volumes — напиши, какой именно интерфейс у тебя открыт (можно описать или скинуть скрин), подскажу альтернативный путь.
 
 ## 4. Environment Variables
 
@@ -112,17 +182,82 @@ Also run seed in Railway Shell (see step 5) so there is data.
 - **Render.com** — very nice UI, but free plan has **no persistent disk** (SQLite will reset). Better if you switch to their free Postgres.
 - **Oracle Cloud Always Free** — the most powerful "real" free tier (always-on VM), but requires more Linux/SSH knowledge.
 
-## Switching to Postgres (more production-like)
+## PostgreSQL на Railway (рекомендуется вместо SQLite)
 
-If you want to use free Postgres (Railway or Render have it):
+PostgreSQL не требует Volume — данные сохраняются в облачной БД. Код уже поддерживает Postgres и MySQL.
 
-1. Add a Postgres database in Railway.
-2. Copy the `DATABASE_URL` it gives you (it will be `postgresql://...`).
-3. Add `asyncpg` to requirements.txt and install.
-4. Change `DATABASE_URL` in variables.
-5. The code already supports it (we use SQLAlchemy async).
+### Шаг 1. Создать базу в Railway
 
-Would you like me to prepare the Postgres-ready version?
+1. Открой свой проект на https://railway.app
+2. Нажми **+ New** (или **Add Service**) → **Database** → **PostgreSQL**
+3. Дождись, пока сервис Postgres станет **Active**
+
+### Шаг 2. Подключить БД к backend-сервису
+
+**Способ A — через Reference (проще всего):**
+
+1. Открой сервис **backend** (FastAPI), вкладка **Variables**
+2. Нажми **+ New Variable** → **Add Reference**
+3. Выбери сервис **PostgreSQL** → переменную **`DATABASE_URL`**
+4. Railway сам подставит URL вида `postgresql://user:pass@host:port/railway`
+
+**Способ B — вручную:**
+
+1. Открой сервис **PostgreSQL** → вкладка **Connect**
+2. Скопируй **Postgres Connection URL**
+3. В сервисе backend → **Variables** добавь:
+   ```
+   DATABASE_URL=postgresql://user:password@host:port/railway
+   ```
+
+Код автоматически преобразует URL в `postgresql+asyncpg://...` для FastAPI.
+
+### Шаг 3. Переменные backend-сервиса
+
+Минимальный набор:
+
+```
+DATABASE_URL=<reference или скопированный URL из Postgres>
+PHOTOS_DIR=/data/photos
+RELOAD=false
+```
+
+- **Volume для фото** всё ещё нужен (фото хранятся на диске, не в БД)
+- Переменную `DATABASE_URL` для SQLite (`sqlite+aiosqlite://...`) **удали**, если переходишь на Postgres
+
+### Шаг 4. Деплой и seed
+
+1. Нажми **Deploy** / **Redeploy**
+2. После статуса **Active** открой **Shell** backend-сервиса
+3. Запусти один раз:
+   ```bash
+   python seed.py
+   ```
+4. Проверь API: `https://твой-url.up.railway.app/health`
+
+### Локальная разработка с Postgres
+
+```bash
+# В папке server/
+pip install -r requirements.txt
+
+# Windows PowerShell:
+$env:DATABASE_URL="postgresql://user:pass@localhost:5432/forgeservice"
+python seed.py
+uvicorn app.main:app --reload
+```
+
+Без `DATABASE_URL` по умолчанию используется локальный SQLite.
+
+### MySQL (альтернатива)
+
+Railway также предлагает MySQL. Шаги те же, только:
+
+1. Создай **MySQL** вместо PostgreSQL
+2. Подключи `DATABASE_URL` через Reference
+3. В `requirements.txt` раскомментируй `aiomysql` и `pymysql`, затем redeploy
+
+Код преобразует `mysql://...` в `mysql+aiomysql://...` автоматически.
 
 ---
 

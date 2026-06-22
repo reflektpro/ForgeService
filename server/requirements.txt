@@ -12,8 +12,13 @@ websockets==12.0
 # For async SQLite
 aiosqlite==0.20.0
 
-# For PostgreSQL (recommended for production free tiers like Railway/Render)
-# asyncpg==0.29.0
+# PostgreSQL (Railway / Render)
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# MySQL (optional, if you use Railway MySQL instead of Postgres)
+# aiomysql==0.2.0
+# pymysql==1.1.1
 
 # Optional: for better PDF or future
 # fpdf2==2.7.9
