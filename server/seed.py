@@ -3,10 +3,14 @@ ForgeService Seed Script (Sync version - very reliable)
 Generates rich realistic demo data.
 
 Run from the server/ folder:
-    python seed.py
+    python seed.py              # очистить БД + фото и залить новые демо-данные (по умолчанию)
+    python seed.py --append     # добавить ещё данные поверх существующих (старое поведение)
+    python seed.py --reset-only # только очистить, без новых данных
 """
 
+import argparse
 import random
+import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
@@ -19,7 +23,7 @@ if server_dir not in sys.path:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.db.database import SYNC_DATABASE_URL, Base
+from app.db.database import SYNC_DATABASE_URL, Base, PHOTOS_DIR
 from app.models.models import (
     Client, Vehicle, Employee, Bay, WorkOrder, WorkOrderItem,
     Part, WorkOrderPartUsage, WorkOrderStatus
@@ -57,6 +61,23 @@ SERVICES = [
     ("Диагностика двигателя (компьютерная)", 0.5, 1500),
 ]
 
+# Delete order respects FK chains (bays <-> work_orders cycle handled explicitly).
+TABLE_CLEAR_ORDER = [
+    "photo_annotations",
+    "photos",
+    "payments",
+    "work_order_part_usages",
+    "work_order_items",
+    "appointments",
+    "work_orders",
+    "vehicle_history",
+    "vehicles",
+    "clients",
+    "parts",
+    "employees",
+    "bays",
+]
+
 PARTS_DATA = [
     ("Масло моторное 5W-40 4л", "MOTUL-5W40-4", 12, 2800, 4200),
     ("Масляный фильтр Hyundai/Kia", "HY-26300", 25, 450, 950),
@@ -66,14 +87,64 @@ PARTS_DATA = [
 ]
 
 
-def seed():
-    print("[SEED] Creating tables if needed...")
+def reset_photos() -> int:
+    """Delete uploaded photo files from PHOTOS_DIR (keeps .gitkeep)."""
+    if not PHOTOS_DIR.exists():
+        PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
+        return 0
+
+    removed = 0
+    for entry in PHOTOS_DIR.iterdir():
+        if entry.name == ".gitkeep":
+            continue
+        if entry.is_file():
+            entry.unlink()
+            removed += 1
+        elif entry.is_dir():
+            shutil.rmtree(entry)
+            removed += 1
+    return removed
+
+
+def reset_database(clear_photos: bool = True) -> None:
+    """Clear all rows (and photo files). Works with Postgres circular FKs (bays <-> work_orders)."""
+    from sqlalchemy import text
+
+    print("[RESET] Clearing database...")
     Base.metadata.create_all(engine)
+
+    if not TABLE_CLEAR_ORDER:
+        print("[RESET] No tables found.")
+    elif engine.dialect.name == "postgresql":
+        table_list = ", ".join(f'"{name}"' for name in TABLE_CLEAR_ORDER)
+        with engine.begin() as conn:
+            conn.execute(text(f"TRUNCATE TABLE {table_list} RESTART IDENTITY CASCADE"))
+        print("[RESET] PostgreSQL tables truncated (IDs reset to 1).")
+    elif engine.dialect.name == "sqlite":
+        with engine.begin() as conn:
+            conn.execute(text("PRAGMA foreign_keys=OFF"))
+            conn.execute(text("UPDATE bays SET current_work_order_id = NULL"))
+            for table_name in TABLE_CLEAR_ORDER:
+                conn.execute(text(f'DELETE FROM "{table_name}"'))
+            conn.execute(text("PRAGMA foreign_keys=ON"))
+        print("[RESET] SQLite tables cleared.")
+    else:
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
+        print("[RESET] Tables dropped and recreated.")
+
+    if clear_photos:
+        count = reset_photos()
+        print(f"[RESET] Removed {count} photo file(s) from {PHOTOS_DIR}.")
+
+
+def seed_data() -> None:
+    """Fill database with a fresh randomized demo dataset."""
+    random.seed()  # new random data on each fresh run
 
     with Session(engine) as db:
         print("[SEED] Generating realistic demo data...")
 
-        # Employees
         employees = []
         for name in MECHANIC_NAMES:
             emp = Employee(
@@ -85,14 +156,12 @@ def seed():
             db.add(emp)
             employees.append(emp)
 
-        # Bays
         bays = []
         for i in range(1, 5):
             bay = Bay(name=f"Бокс {i}", description="Подъёмник" if i % 2 == 0 else "")
             db.add(bay)
             bays.append(bay)
 
-        # Clients + Vehicles
         clients = []
         vehicles = []
         for name in NAMES:
@@ -107,7 +176,7 @@ def seed():
                     make=make,
                     model=model,
                     year=random.randint(2016, 2024),
-                    license_plate=f"А{random.randint(100,999)}ВС 77",
+                    license_plate=f"А{random.randint(100, 999)}ВС 77",
                     vin="XTA" + str(random.randint(100000000000, 999999999999)),
                     engine="1.6 MPI",
                     transmission=random.choice(["МКПП", "АКПП"]),
@@ -120,7 +189,6 @@ def seed():
         db.commit()
         print(f"[SEED] {len(clients)} clients, {len(vehicles)} vehicles, {len(bays)} bays")
 
-        # Parts
         parts = []
         for name, pn, qty, buy, sell in PARTS_DATA:
             p = Part(
@@ -132,7 +200,6 @@ def seed():
         db.commit()
         print(f"[SEED] {len(parts)} parts in warehouse")
 
-        # Work orders
         created = 0
         for _ in range(11):
             vehicle = random.choice(vehicles)
@@ -148,7 +215,6 @@ def seed():
             db.add(wo)
             db.flush()
 
-            # works
             for _ in range(random.randint(1, 3)):
                 desc, hours, price = random.choice(SERVICES)
                 item = WorkOrderItem(
@@ -160,7 +226,6 @@ def seed():
                 )
                 db.add(item)
 
-            # parts usage
             if random.random() > 0.5:
                 part = random.choice(parts)
                 if part.quantity > 0:
@@ -186,7 +251,6 @@ def seed():
         db.commit()
         print(f"[SEED] {created} work orders created with mixed statuses")
 
-        # One rich demo order (in progress)
         rich_v = vehicles[0]
         rich = WorkOrder(
             vehicle_id=rich_v.id,
@@ -201,7 +265,7 @@ def seed():
         for desc, hours, price in SERVICES[:3]:
             db.add(WorkOrderItem(
                 work_order_id=rich.id, description=desc,
-                hours=hours, price_per_hour=price, total_price=round(hours*price)
+                hours=hours, price_per_hour=price, total_price=round(hours * price)
             ))
 
         rich.labor_cost = 9800
@@ -214,5 +278,41 @@ def seed():
         print("You can now start the server and explore rich data.")
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description="ForgeService database seed / reset")
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="add demo data on top of existing rows (old behavior)",
+    )
+    parser.add_argument(
+        "--reset-only",
+        action="store_true",
+        help="only clear database and photos, do not seed",
+    )
+    parser.add_argument(
+        "--keep-photos",
+        action="store_true",
+        help="when resetting, keep files in PHOTOS_DIR",
+    )
+    args = parser.parse_args()
+
+    if args.reset_only:
+        reset_database(clear_photos=not args.keep_photos)
+        print("[DONE] Database is empty.")
+        return
+
+    if args.append:
+        print("[SEED] Append mode: existing data will be kept.")
+        Base.metadata.create_all(engine)
+        seed_data()
+        return
+
+    # Default: fresh start
+    print("[SEED] Fresh mode: wipe database and load new demo data.")
+    reset_database(clear_photos=not args.keep_photos)
+    seed_data()
+
+
 if __name__ == "__main__":
-    seed()
+    main()
