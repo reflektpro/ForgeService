@@ -93,7 +93,11 @@ fun AnalyticsScreen() {
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MetricCard("Активных ЗН", s.active_orders.toString(), Modifier.weight(1f))
-                    MetricCard("Загрузка боксов", "${s.bays_occupied}/${s.bays_total}", Modifier.weight(1f))
+                    MetricCard(
+                        "Боксы занято",
+                        "${s.bays_occupied} из ${s.bays_total}",
+                        Modifier.weight(1f)
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))

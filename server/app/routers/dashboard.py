@@ -3,7 +3,7 @@ Dashboard & Analytics — the "executive" view.
 """
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 
@@ -71,12 +71,29 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     )
     low_stock_parts = int(low_stock.scalar_one() or 0)
 
-    # Bays
-    bays_total = await db.execute(select(func.count(Bay.id)))
+    # Bays: occupied if an active work order is assigned OR bay.current_work_order_id is set
+    active_assigned_bay_ids = (
+        select(WorkOrder.assigned_bay_id)
+        .where(
+            WorkOrder.status.in_(ACTIVE_STATUSES),
+            WorkOrder.assigned_bay_id.is_not(None),
+        )
+        .distinct()
+    )
+
+    bays_total = await db.execute(
+        select(func.count(Bay.id)).where(Bay.is_active.is_(True))
+    )
     bays_total = int(bays_total.scalar_one() or 0)
 
     bays_occupied = await db.execute(
-        select(func.count(Bay.id)).where(Bay.current_work_order_id.is_not(None))
+        select(func.count(Bay.id)).where(
+            Bay.is_active.is_(True),
+            or_(
+                Bay.current_work_order_id.is_not(None),
+                Bay.id.in_(active_assigned_bay_ids),
+            ),
+        )
     )
     bays_occupied = int(bays_occupied.scalar_one() or 0)
 

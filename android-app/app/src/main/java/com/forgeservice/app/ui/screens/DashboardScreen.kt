@@ -139,6 +139,12 @@ fun DashboardScreen(navController: NavController? = null) {
 
             val s = stats
 
+            // Считаем боксы так же, как в карточках ниже (по активным ЗН с assigned_bay_id)
+            val occupiedBayCount = bays.count { bay -> isBayOccupied(bay, activeOrders) }
+            val totalBayCount = bays.size
+            val freeBayCount = (totalBayCount - occupiedBayCount).coerceAtLeast(0)
+            val lowStockCount = lowStockParts.size
+
             // Оперативные KPI (короткие, актуальные)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -146,21 +152,33 @@ fun DashboardScreen(navController: NavController? = null) {
             ) {
                 SmallMetricCard(
                     label = "Активных ЗН",
-                    value = s?.active_orders?.toString() ?: "—",
+                    value = s?.active_orders?.toString() ?: activeOrders.size.toString(),
                     modifier = Modifier.weight(1f)
                 )
                 SmallMetricCard(
-                    label = "Свободно боксов",
-                    value = if (s != null) "${s.bays_total - s.bays_occupied}/${s.bays_total}" else "—",
+                    label = "Боксы",
+                    value = if (totalBayCount > 0) "$freeBayCount из $totalBayCount" else "—",
+                    subtitle = "свободно",
                     modifier = Modifier.weight(1f)
                 )
                 SmallMetricCard(
-                    label = "Низкий остаток",
-                    value = s?.low_stock_parts?.toString() ?: "—",
+                    label = "Склад",
+                    value = if (lowStockCount > 0) "$lowStockCount поз." else "OK",
+                    subtitle = if (lowStockCount > 0) "заканчивается" else "в норме",
                     modifier = Modifier.weight(1f),
-                    highlight = (s?.low_stock_parts ?: 0) > 0
+                    highlight = lowStockCount > 0
                 )
             }
+
+            Text(
+                if (lowStockCount > 0)
+                    "«Заканчивается» — запчасти, у которых остаток ≤ минимального (пора заказать)."
+                else
+                    "Бокс занят, если на него назначен активный заказ-наряд.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp)
+            )
 
             Spacer(Modifier.height(20.dp))
 
@@ -171,11 +189,10 @@ fun DashboardScreen(navController: NavController? = null) {
             if (bays.isEmpty()) {
                 Text("Боксы не загружены", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                val occupiedBayIds = activeOrders.mapNotNull { it.assigned_bay_id }.toSet()
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     bays.forEach { bay ->
                         val orderInBay = activeOrders.find { it.assigned_bay_id == bay.id }
-                        val occupied = (bay.current_work_order_id != null) || (bay.id in occupiedBayIds)
+                        val occupied = isBayOccupied(bay, activeOrders)
                         val woIdForLabel = bay.current_work_order_id ?: orderInBay?.id
                         val statusText = if (occupied && woIdForLabel != null) "ЗАНЯТ • ЗН-$woIdForLabel" else if (occupied) "ЗАНЯТ" else "СВОБОДЕН"
 
@@ -377,6 +394,11 @@ fun DashboardScreen(navController: NavController? = null) {
     }
 }
 
+private fun isBayOccupied(bay: BayDto, activeOrders: List<WorkOrderDto>): Boolean {
+    if (bay.current_work_order_id != null) return true
+    return activeOrders.any { it.assigned_bay_id == bay.id }
+}
+
 private fun getStatusVisual(status: String): Pair<String, Color> {
     return when (status) {
         "new" -> "НОВАЯ" to Color(0xFF607D8B)
@@ -395,6 +417,7 @@ private fun SmallMetricCard(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     highlight: Boolean = false
 ) {
     Card(
@@ -414,6 +437,13 @@ private fun SmallMetricCard(
                 color = if (highlight) Color(0xFFE57373) else MaterialTheme.colorScheme.primary
             )
             Text(label, style = MaterialTheme.typography.bodySmall)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
